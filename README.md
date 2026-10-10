@@ -1,6 +1,8 @@
 # strata-tray
 
-GNOME 顶栏上的 Strata 状态指示器：**只有一个彩色圆点**，颜色就是状态，点开是详情。
+GNOME 顶栏上的 [Strata](https://github.com/Niko1221/Strata) 状态指示器：**只有一个彩色圆点**，颜色就是状态，点开是详情。
+
+![五个状态在深色面板上的样子](preview-dark-32.png)
 
 | 状态 | 颜色 | 含义 |
 | --- | --- | --- |
@@ -40,17 +42,25 @@ API key 的查找顺序：环境变量 `STRATA_API_KEY` → `~/.config/strata/se
 > GNOME 的 appindicator 扩展不渲染 SNI 的 `ToolTip`，所以悬浮提示只有 KDE 等宿主能看到；
 > 在 GNOME 上详情在点击菜单里。
 
+## 需要什么
+
+- Strata 服务器在 `127.0.0.1:8080`（本工具读它的 `/status` 和 `/v1/status`）
+- GNOME 加 AppIndicator 扩展（`appindicatorsupport@rgcjonas.gmail.com`），Wayland / X11 都行
+- 编译需要 Rust 1.80+
+
 ## 构建与运行
 
 ```sh
-cd ~/git/Strata-data/strata-tray
 cargo build --release
 ./target/release/strata-tray          # 前台跑，Ctrl-C 退出
 ```
 
-装成用户服务（登录后自启）：
+装成用户服务（登录后自启）：先把 `strata-tray.service` 里 `ExecStart` 的路径改成你这边的
+`target/release/strata-tray`（默认写的是 `%h/git/Strata-data/strata-tray/...`，`%h` 是家目录），然后
 
 ```sh
+cp strata-tray.service ~/.config/systemd/user/
+systemctl --user daemon-reload
 systemctl --user enable --now strata-tray     # 启动 + 自启
 systemctl --user status strata-tray           # 看状态
 journalctl --user -u strata-tray -f           # 看日志
@@ -70,5 +80,8 @@ systemctl --user disable --now strata-tray    # 关掉
 
 `preview-{dark,light}-{16,32}.png` 是深色/浅色面板底色下的样子，左起
 Idle、Reading、Reading+排队角标、Generating、Generating+排队角标。
-像素来自真实负载（两个并发的模型请求）时托盘实际发出的 `IconPixmap`，不是另画的示意图。
+像素来自真实负载（三个并发的模型请求）时托盘实际发出的 `IconPixmap`，不是另画的示意图。
 Error 的红色没法用真实负载造出来（要停掉服务器），只有 token 值。
+
+![深色面板](preview-dark-16.png)
+![浅色面板](preview-light-16.png)
