@@ -1,0 +1,13 @@
+[Unit]
+Description=Strata tray indicator (GNOME top bar status for strata.service)
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/git/Strata-data/strata-tray/target/release/strata-tray
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

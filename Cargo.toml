@@ -1,0 +1,9 @@
+[package]
+name = "strata-tray"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# 只要图标, 不需要 XAyatanaLabel, 所以用 crates.io 上的正式版本 (不用那个未合并的 PR)
+ksni = { version = "0.3.6", features = ["blocking"] }
+serde_json = "1"
