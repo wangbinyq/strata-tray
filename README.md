@@ -27,6 +27,7 @@ generating=`--st-accent`、reading=`--st-info`、queued=`--st-warn`、error=`--s
 
 - `/status`（每秒，几百字节）：`busy`、`queued`、`phase`、`prompt_tokens`、`generated`、`elapsed_s`、`tokens_per_s`
 - `/v1/status`（每 5 秒）：模型、engine 版本、上下文、uptime、请求数、上一个请求的耗时、GPU 利用率/温度/功耗、内存
+- `/metrics`（每 30 秒）：`totals` 里的累计 token（prompt / reused / output）
 - 没有 API key 时退化为 `/health`（无需认证，但只有模型名和是否加载）
 
 API key 的查找顺序：环境变量 `STRATA_API_KEY` → `~/.config/strata/service.env`。
@@ -34,9 +35,10 @@ API key 的查找顺序：环境变量 `STRATA_API_KEY` → `~/.config/strata/se
 ## 菜单（点击圆点）
 
 详情若干行（不可点）：状态、tok/s（即时与均值）、已生成、排队数、上下文占用、模型与 engine、
-运行时长与请求数、GPU、内存、上一个请求的耗时。
+运行时长与请求数、**tokens 总计**（服务器启动至今的 prompt / 复用 / 输出，用 K/M/B 简写）、GPU、内存、
+上一个请求的耗时。
 
-然后是：打开网页界面、重启服务、停止服务（服务器不通时变成启动服务）、退出托盘。
+然后是：打开网页界面（`http://127.0.0.1:8080/#monitor`）、重启服务、停止服务（服务器不通时变成启动服务）、退出托盘。
 服务操作走 `systemctl --user <verb> strata`。
 
 > GNOME 的 appindicator 扩展不渲染 SNI 的 `ToolTip`，所以悬浮提示只有 KDE 等宿主能看到；

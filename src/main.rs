@@ -20,6 +20,7 @@ const DEFAULT_PORT: u16 = 8080;
 const UNIT: &str = "strata";
 const LIVE_EVERY: Duration = Duration::from_secs(1);
 const SLOW_EVERY: Duration = Duration::from_secs(5);
+const TOTALS_EVERY: Duration = Duration::from_secs(30);
 const KEY_ENV: &str = "STRATA_API_KEY";
 const KEY_FILE: &str = ".config/strata/service.env";
 
@@ -55,6 +56,13 @@ impl State {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+struct Totals {
+    prompt: u64,
+    reused: u64,
+    output: u64,
+}
+
 #[derive(Clone, Default)]
 struct Snapshot {
     state: State,
@@ -84,6 +92,8 @@ struct Snapshot {
     last: Option<(f64, f64, f64)>,
     gpu: Option<(i64, f64, f64)>,
     ram: Option<(f64, f64)>,
+    /// /metrics 的 totals: 服务器启动至今累计 (30 秒拉一次)
+    totals: Option<Totals>,
 }
 
 impl Snapshot {
@@ -267,6 +277,18 @@ fn poll_slow(snap: &mut Snapshot, key: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// /metrics 里的 totals: 服务器启动至今的累计 token 数.
+fn poll_totals(snap: &mut Snapshot, key: &str) -> Result<(), String> {
+    let v = json(&http_get("/metrics", Some(key))?)?;
+    let t = &v["totals"];
+    snap.totals = Some(Totals {
+        prompt: t["prompt_tokens"].as_u64().unwrap_or(0),
+        reused: t["reused"].as_u64().unwrap_or(0),
+        output: t["output_tokens"].as_u64().unwrap_or(0),
+    });
+    Ok(())
+}
+
 /// 没有 API key 时的退路: /health 不需要认证, 但只有模型名和是否加载.
 fn poll_health(snap: &mut Snapshot) -> Result<(), String> {
     let v = json(&http_get("/health", None)?)?;
@@ -358,6 +380,12 @@ impl Tray {
             }
             out.push(line);
         }
+        if let Some(t) = s.totals {
+            out.push(format!("tokens 总计  prompt {} · 输出 {}", count(t.prompt), count(t.output)));
+            if t.prompt > 0 && t.reused > 0 {
+                out.push(format!("  其中复用 {}（{:.0}%）", count(t.reused), 100.0 * t.reused as f64 / t.prompt as f64));
+            }
+        }
         if let Some((u, t, w)) = s.gpu {
             let mut line = format!("GPU {u}%");
             if t.is_finite() {
@@ -390,6 +418,20 @@ fn hms(secs: i64) -> String {
         format!("{h}h{m:02}m")
     } else {
         format!("{m}m")
+    }
+}
+
+/// 大数字: 846.1K / 197.4M / 1.23B
+fn count(n: u64) -> String {
+    let f = n as f64;
+    if f >= 1e9 {
+        format!("{:.2}B", f / 1e9)
+    } else if f >= 1e6 {
+        format!("{:.1}M", f / 1e6)
+    } else if f >= 1e3 {
+        format!("{:.1}K", f / 1e3)
+    } else {
+        n.to_string()
     }
 }
 
@@ -445,7 +487,7 @@ fn dot_icon(rgb: (u8, u8, u8), size: i32, queued: bool) -> Icon {
 
 fn open_web() {
     let (host, port) = endpoint();
-    let _ = Command::new("xdg-open").arg(format!("http://{host}:{port}")).spawn();
+    let _ = Command::new("xdg-open").arg(format!("http://{host}:{port}/#monitor")).spawn();
 }
 
 fn systemctl(verb: &str) {
@@ -504,6 +546,7 @@ fn main() {
     let key = api_key();
     let mut snap = Snapshot { has_key: key.is_some(), ..Default::default() };
     let mut last_slow = Instant::now() - SLOW_EVERY;
+    let mut last_totals = Instant::now() - TOTALS_EVERY;
 
     let tray = Tray { snap: snap.clone(), quit: false };
     let handle = match tray.spawn() {
@@ -536,6 +579,15 @@ fn main() {
                 }
             }
             last_slow = Instant::now();
+        }
+
+        if last_totals.elapsed() >= TOTALS_EVERY && snap.state != State::Error {
+            if let Some(k) = key.as_deref() {
+                if let Err(e) = poll_totals(&mut snap, k) {
+                    snap.note = Some(e);
+                }
+            }
+            last_totals = Instant::now();
         }
 
         let mut quit = false;
