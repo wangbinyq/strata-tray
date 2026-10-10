@@ -495,10 +495,14 @@ fn systemctl(verb: &str) {
 }
 
 impl ksni::Tray for Tray {
-    const MENU_ON_ACTIVATE: bool = true;
-
     fn id(&self) -> String {
         "strata".into()
+    }
+
+    /// 双击: 打开网页面 (GNOME 的 appindicator 扩展把双击叫 open/Activate)。
+    /// 单击仍然是菜单——扩展会先等一个双击间隔 (~400ms) 再弹菜单。
+    fn activate(&mut self, _x: i32, _y: i32) {
+        open_web();
     }
 
     fn title(&self) -> String {

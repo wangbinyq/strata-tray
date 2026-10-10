@@ -41,6 +41,9 @@ API key 的查找顺序：环境变量 `STRATA_API_KEY` → `~/.config/strata/se
 然后是：打开网页界面（`http://127.0.0.1:8080/#monitor`）、重启服务、停止服务（服务器不通时变成启动服务）、退出托盘。
 服务操作走 `systemctl --user <verb> strata`。
 
+**鼠标**：单击弹菜单（扩展会先等一个双击间隔，约 400ms，再来弹），双击直接打开上面的
+`/#monitor` 页面（走 SNI 的 `Activate`），右键也弹菜单。
+
 > GNOME 的 appindicator 扩展不渲染 SNI 的 `ToolTip`，所以悬浮提示只有 KDE 等宿主能看到；
 > 在 GNOME 上详情在点击菜单里。
 
